@@ -1,0 +1,9 @@
+[build-system]
+requires = ["setuptools>=65"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mono3d-yolov10"
+version = "0.1.0"
+description = "A lightweight YOLOv10-based geometry-guided framework for monocular 3D object detection and distance estimation."
+requires-python = ">=3.11,<3.12"
