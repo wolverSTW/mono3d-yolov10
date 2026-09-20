@@ -1,0 +1,19 @@
+# Core scientific computing
+numpy==2.4.6
+
+# Computer vision and image processing
+opencv-python==4.14.0.94
+Pillow==12.3.0
+
+# Configuration
+PyYAML==6.0.3
+
+# Data analysis and visualisation
+pandas==3.0.6
+matplotlib==3.11.2
+
+# Evaluation
+scikit-learn==1.9.1
+
+# Utilities
+tqdm==4.70.1
