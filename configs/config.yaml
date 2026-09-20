@@ -1,0 +1,59 @@
+# ============================================================
+# Project Configuration
+# ============================================================
+
+project:
+  name: "mono3d-yolov10"
+  description: "Lightweight YOLOv10-based geometry-guided framework for monocular 3D object detection and distance estimation"
+  seed: 42
+
+# ============================================================
+# Dataset Configuration
+# ============================================================
+
+dataset:
+  name: "KITTI"
+  type: "3d_object_detection"
+  root: "data/raw/kitti"
+  image_dir: "data/raw/kitti/image_2"
+  label_dir: "data/raw/kitti/label_2"
+  calibration_dir: "data/raw/kitti/calib"
+
+# ============================================================
+# Input Configuration
+# ============================================================
+
+input:
+  image_width: 640
+  image_height: 640
+  channels: 3
+
+# ============================================================
+# Model Configuration
+# ============================================================
+
+model:
+  name: "yolov10"
+  variant: "yolov10n"
+  num_classes: 3
+
+# ============================================================
+# Training Configuration
+# ============================================================
+
+training:
+  epochs: 100
+  batch_size: 16
+  learning_rate: 0.001
+  weight_decay: 0.0005
+  num_workers: 4
+
+# ============================================================
+# Output Directories
+# ============================================================
+
+paths:
+  checkpoints: "checkpoints"
+  logs: "logs"
+  results: "results"
+  figures: "results/figures"
