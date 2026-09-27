@@ -49,6 +49,8 @@ desktop.ini
 # ============================================================
 
 data/raw/*
+!data/raw/kitti/
+!data/raw/kitti/README.md
 data/processed/*
 data/splits/*
 
