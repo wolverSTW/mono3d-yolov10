@@ -504,6 +504,95 @@ The model runs on CPU or CUDA automatically.
 
 ---
 
+## Baseline Multi-Task Loss (EXP-003D)
+
+EXP-003D implements the baseline multi-task loss functions required to train
+the EXP-003C baseline model. It provides modular, configurable loss functions
+for each prediction head and a combined multi-task loss aggregator.
+
+### What EXP-003D does
+
+1. **2D Detection Loss** (`DetectionLoss`) — combines:
+   - Box regression: Smooth L1 on normalised (x1, y1, x2, y2)
+   - Objectness: BCELoss on sigmoid probabilities (1=matched, 0=background)
+   - Classification: CrossEntropyLoss on class logits
+2. **3D Dimension Loss** (`DimensionLoss`) — Smooth L1 on physical dimensions
+   (h, w, l) in metres. Model uses `exp(logits)` for positivity.
+3. **3D Location Loss** (`LocationLoss`) — Smooth L1 on (X, Y, Z) in metres.
+   Z is camera-axis depth, NOT Euclidean distance.
+4. **Orientation Loss** (`OrientationLoss`) — angular difference with periodicity
+   handling via `atan2(sin(pred-target), cos(pred-target))`, then Smooth L1.
+5. **Total Loss** (`TotalLoss`) — weighted sum of all components with
+   configurable weights. Returns total and individual components.
+
+### Architecture
+
+```text
+Model Outputs + Targets
+        │
+        ▼
+Assignment (fixed-order)
+        │
+        ├── Box Loss (Smooth L1 on [0,1] coords)
+        ├── Objectness (BCELoss on sigmoid probs)
+        ├── Classification (CrossEntropy on logits)
+        ├── Dimension 3D (Smooth L1 on exp(logits) in metres)
+        ├── Location 3D (Smooth L1 on X,Y,Z camera coords)
+        ├── Orientation (Angular diff + Smooth L1)
+        │
+        ▼
+TotalLoss = Σ λ_i * L_i
+```
+
+### Loss Formulas
+
+| Loss | Formula | Target |
+|------|---------|--------|
+| Box | Smooth L1 on (x1,y1,x2,y2) ∈ [0,1] | Normalised coords |
+| Objectness | BCELoss(p, y) where p∈[0,1], y∈{0,1} | Matched=1, bg=0 |
+| Classification | CrossEntropy(logits, class_idx) | Class indices |
+| Dimension | Smooth L1 on exp(logits) in metres | (h,w,l) metres |
+| Location | Smooth L1 on direct regression | (X,Y,Z) camera metres |
+| Orientation | Smooth L1 on atan2(sin(Δ),cos(Δ)) | rotation_y radians |
+
+**Coordinate Conventions (preserved from EXP-002):**
+- 2D bbox: (x1, y1, x2, y2) normalised to [0, 1]
+- 3D dims: (height, width, length) in metres — exact h, w, l ordering
+- 3D location: (X, Y, Z) rectified camera coords — X horizontal, Y vertical, Z forward depth
+- Orientation: `rotation_y` in radians — NOT `alpha` (observation angle)
+- Z is camera-axis depth; NOT Euclidean distance
+
+### Run the loss tests (local smoke test)
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_*_loss.py -v
+```
+
+All tests use synthetic fixtures — no real KITTI data required.
+
+### Configuration
+
+In `configs/config.yaml`:
+
+```yaml
+loss:
+  box_weight: 1.0
+  objectness_weight: 1.0
+  classification_weight: 1.0
+  dimension_3d_weight: 1.0
+  location_3d_weight: 1.0
+  orientation_weight: 1.0
+  box_loss_beta: 1.0/9.0
+```
+
+### Local development and GPU server execution
+
+Use the same loss modules locally for code development and synthetic-fixture
+tests. On a GPU server, instantiate `TotalLoss` with the config. The loss
+modules run on CPU or CUDA automatically.
+
+---
+
 ## Development Status
 
 - EXP-001 — KITTI Dataset Audit — implemented and covered by synthetic-fixture
@@ -517,5 +606,7 @@ The model runs on CPU or CUDA automatically.
   tests (17 passed). The real dataset has not been processed.
 - EXP-003C — Baseline 3D Prediction Heads — implemented and covered by synthetic-fixture
   tests (70 total tests passed). The real dataset has not been processed.
-- Geometry-guided enhancement, losses, training, evaluation, and visualisation
+- EXP-003D — Baseline Multi-Task Loss — implemented and covered by synthetic-fixture
+  tests (108 total tests passed). The real dataset has not been processed.
+- Geometry-guided enhancement, training, evaluation, and visualisation
   pipelines — not yet implemented.

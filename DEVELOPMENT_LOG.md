@@ -152,4 +152,46 @@ ultralytics 8.4.163. CUDA not available locally (CPU-only development).
 evaluation, geometry-guided enhancement, Transformer, uncertainty, or
 distance refinement. CUDA not available locally — GPU verification pending.
 
-**Next step:** EXP-003D — Baseline Losses.
+**Next step:** EXP-003D — Baseline Multi-Task Loss.
+
+---
+
+## EXP-003D — Baseline Multi-Task Loss
+
+**Objective:** implement baseline multi-task loss functions for the 3D detection baseline.
+
+**Implementation:** added loss modules in `src/losses/`:
+- `detection_loss.py` — `DetectionLoss`: combines Smooth L1 box regression, BCELoss objectness, CrossEntropy classification.
+- `dimension_loss.py` — `DimensionLoss`: Smooth L1 on exp(logits) for positive (h,w,l) dimensions.
+- `location_loss.py` — `LocationLoss`: Smooth L1 on direct regression of (X,Y,Z) camera coords.
+- `orientation_loss.py` — `OrientationLoss`: angular difference `atan2(sin(pred-target), cos(pred-target))` with Smooth L1.
+- `assignment.py` — `assign_fixed_order()`: deterministic prediction-target matching.
+- `total_loss.py` — `TotalLoss`: weighted multi-task aggregator returning total + components.
+
+**Key features:**
+- Fixed-order assignment (predictions matched to targets in order)
+- Smooth L1 (Huber) regression for all geometric losses
+- Angular difference `atan2(sin(pred-target), cos(pred-target))` for orientation
+- BCELoss on sigmoid probs for objectness (1=matched, 0=background)
+- CrossEntropy on logits for classification
+- Exponential transform `exp(logits)` for positive dimensions
+- Direct regression for location (X,Y,Z) and orientation (rotation_y)
+- Structured `TotalLossOutput` with total + component losses
+- All losses support empty targets, valid masks, variable object counts
+- Configurable loss weights via `TotalLoss` config
+
+**Coordinate conventions preserved (EXP-002):**
+- 2D bbox: (x1, y1, x2, y2) normalised [0,1]
+- 3D dims: (h, w, l) metres — exact h,w,l ordering
+- 3D location: (X, Y, Z) rectified camera coords — X horizontal, Y vertical, Z forward depth
+- Orientation: `rotation_y` in radians — NOT `alpha`
+- Z is camera-axis depth; NOT Euclidean distance
+
+**Environment:** Python 3.11, PyTorch 2.4.0+cpu, torchvision 0.19.0+cpu,
+ultralytics 8.4.163. CUDA not available locally (CPU-only development).
+
+**Tests:** 108 total tests pass (14 EXP-001 + 20 EXP-002 + 19 EXP-003A + 17 EXP-003B + 38 EXP-003C/D).
+
+**Limitations:** Real KITTI dataset not processed. No training pipeline, evaluation, geometry-guided enhancement, Transformer, uncertainty, or distance refinement. CUDA not available locally — GPU verification pending.
+
+**Next step:** EXP-003E — Baseline Training Pipeline.

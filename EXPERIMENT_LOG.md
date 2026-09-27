@@ -182,3 +182,50 @@ mode for development).
 **Limitations:** Real KITTI dataset not processed. No losses, training,
 evaluation, geometry-guided enhancement, Transformer/context, uncertainty,
 distance refinement. CUDA not available locally — GPU verification pending.
+
+---
+
+## EXP-003D — Baseline Multi-Task Loss
+
+**Status:** implemented and verified with synthetic-fixture test suite
+(`108 passed` total).
+
+**Inputs:** Model outputs (from EXP-003C) and ground-truth targets:
+- `class_logits`: [B, N, C]
+- `pred_boxes`: [B, N, 4] normalised [0,1]
+- `pred_objectness`: [B, N] sigmoid probabilities
+- `pred_dimensions`: [B, N, 3] metres (exp'd)
+- `pred_dim_logits`: [B, N, 3] raw logits
+- `pred_locations`: [B, N, 3] metres
+- `pred_loc_logits`: [B, N, 3] raw logits
+- `pred_rotation_y`: [B, N] radians
+- `pred_orient_logits`: [B, N, 1] raw logits
+- Targets: boxes, labels, dimensions, locations, rotation_y, counts
+
+**Outputs:** `TotalLossOutput` dataclass with:
+- `total`: weighted sum of all component losses
+- `detection`: `DetectionLossOutput` — box, objectness, classification
+- `dimension_3d`: scalar dimension loss
+- `location_3d`: scalar location loss
+- `orientation`: scalar orientation loss
+- `weights`: dict of loss weights used
+
+**Validation rules:**
+- Input tensors must be [B, 3, H, W] with H, W divisible by 32
+- Output feature maps must be finite (no NaN/Inf)
+- Dimension outputs strictly positive (exp transform)
+- Dimension ordering: h, w, l
+- Location: X, Y, Z in camera coords; Z is depth not distance
+- Orientation: rotation_y in radians; NOT alpha
+
+**Test strategy:** synthetic fixtures only. Tests cover:
+- 2D detection loss: box, objectness, classification, empty targets
+- Dimension loss: positive dims, h/w/l ordering, empty assignment
+- Location loss: X/Y/Z convention, empty assignment
+- Orientation loss: angular wrap, pi/opposite, empty assignment
+- Total loss: perfect match, empty targets, weighted sum, output structure
+- Assignment: fixed-order, center-distance, empty targets
+
+**Limitations:** Real KITTI dataset not processed. No training pipeline,
+evaluation, geometry-guided enhancement, Transformer/context, uncertainty,
+distance refinement. CUDA not available locally — GPU verification pending.
