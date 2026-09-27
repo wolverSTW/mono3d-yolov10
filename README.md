@@ -133,11 +133,101 @@ same audit command can be run there with `--data-root` pointing to the server's
 dataset location. The GPU-server execution command is documented but has not
 yet been verified on a GPU server; the audit itself does not require a GPU.
 
+---
+
+## Dataset Preparation (EXP-002)
+
+EXP-002 implements preprocessing and coordinate validation for the KITTI dataset.
+It builds on the EXP-001 audit to produce a validated, split manifest ready for
+training.
+
+### What EXP-002 does
+
+1. **Frame validation** — verifies every frame has matching image, label, and
+   calibration files with no duplicates
+2. **Coordinate validation** — parses and validates KITTI 3D annotations (2D
+   boxes, 3D dimensions, 3D location, orientation) against original image size
+3. **Camera calibration parsing** — extracts and validates the P2 projection
+   matrix and derives camera intrinsics (fx, fy, cx, cy)
+4. **Image preprocessing** — supports two modes:
+   - `resize` — anisotropic direct resize to target dimensions
+   - `letterbox` — aspect-ratio-preserving resize with centred padding (default)
+5. **Geometric consistency** — transforms 2D bounding boxes and the P2 projection
+   matrix using the same image-plane transformation matrix `A`, ensuring
+   `P' = A @ P` holds exactly
+6. **Train/validation split** — deterministic, reproducible frame-level split
+   using a configured seed
+7. **Manifest generation** — writes a JSON manifest with all metadata needed for
+   a PyTorch Dataset (relative paths, preprocessing parameters, transformed P2,
+   split assignment)
+
+### Expected KITTI structure
+
+Same as EXP-001:
+```text
+data/raw/kitti/
+├── image_2/    # RGB images
+├── label_2/    # KITTI 3D annotations
+└── calib/      # KITTI calibration files
+```
+
+### Run the preparation
+
+From the repository root, after installing the project requirements:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\prepare_kitti.py
+```
+
+The default dataset root, manifest output path, validation ratio, seed,
+preprocessing mode, and output image size are configured in
+`configs/config.yaml`. The default manifest path is
+`data/splits/kitti/exp002_manifest.json`.
+
+For an explicitly supplied dataset location and manifest path:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\prepare_kitti.py `
+  --data-root D:\path\to\kitti `
+  --output data\splits\kitti\my_manifest.json `
+  --validation-ratio 0.2 `
+  --seed 42 `
+  --preprocessing-mode letterbox
+```
+
+The command prints a concise summary, writes a machine-readable JSON manifest,
+and exits with code `0` only when all frames are valid and split successfully.
+A failed preparation records diagnostics for invalid frames in the manifest and
+exits with code `1`.
+
+### Manifest contents
+
+The generated manifest (`kitti-preparation-manifest-v1` format) contains:
+
+- **Global metadata**: preprocessing mode, output image size, split configuration
+- **Per-frame entries**: relative paths to image/label/calibration, original
+  image size, annotation counts, preprocessing transform (scale, padding), and
+  the transformed 3×4 P2 projection matrix
+- **Invalid samples**: frames that failed validation with reasons (not silently
+  discarded)
+
+### Local development and GPU server execution
+
+Use the same command locally for code development and synthetic-fixture tests.
+After cloning the repository and making KITTI available on a GPU server, the
+same preparation command can be run there with `--data-root` pointing to the
+server's dataset location. The GPU-server execution command is documented but
+has not yet been verified on a GPU server; preparation itself does not require
+a GPU.
+
+---
+
 ## Development Status
 
 - EXP-001 — KITTI Dataset Audit — implemented and covered by synthetic-fixture
-  tests. The repository's real KITTI directories are currently empty; no claim
-  is made that the real dataset has passed this audit.
-- EXP-002 — Preprocessing + Coordinate Validation — not started.
+  tests (14 passed). The repository's real KITTI directories are currently
+  empty; no claim is made that the real dataset has passed this audit.
+- EXP-002 — Preprocessing + Coordinate Validation — implemented and covered by
+  synthetic-fixture tests (20 passed). The real dataset has not been processed.
 - YOLOv10 integration, 3D prediction, training, evaluation, and visualisation
   pipelines — not yet implemented.

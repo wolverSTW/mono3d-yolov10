@@ -20,3 +20,37 @@ repository. The implementation has been tested only against synthetic fixtures;
 no real KITTI dataset statistics or audit outcome are claimed.
 
 **Next step:** EXP-002 — Preprocessing + Coordinate Validation.
+
+---
+
+## EXP-002 — Preprocessing + Coordinate Validation
+
+**Objective:** parse, validate, and transform KITTI annotations and images into
+a geometrically consistent, split manifest ready for training.
+
+**Implementation:** added parsing and validation for KITTI 3D annotations
+(`kitti_parser.py`), camera calibration (`calibration.py`), image-plane
+transformations with geometric consistency (`transforms.py`), and a preparation
+pipeline that produces a split manifest (`converter.py`, `prepare_kitti.py`).
+Key features:
+- 15-field KITTI label parsing with structured dataclasses preserving
+  dimension order (H, W, L) and camera coordinates (X, Y, Z)
+- Separate `alpha` (observation angle) and `rotation_y` (camera-frame yaw)
+  handling
+- `DontCare` regions parsed but excluded from physical constraints
+- P2 projection matrix parsing with intrinsic derivation (fx, fy, cx, cy)
+- Letterbox (aspect-preserving) and resize preprocessing modes
+- 3×3 image-plane transform matrix `A` applied to both 2D boxes and P2
+  as `P' = A @ P`
+- Deterministic train/validation split with configurable seed
+- JSON manifest with per-frame metadata including transformed P2
+
+**Tests:** 20 synthetic-fixture tests covering annotation parsing, calibration
+parsing, coordinate validation, transform mathematics (bbox, inverse bbox,
+projection matrix), image preprocessing, deterministic splitting, manifest
+generation, CLI success/failure paths, and invalid frame reporting.
+
+**Limitations:** The real KITTI dataset has not been processed. No PyTorch
+Dataset or DataLoader implemented yet. Class mapping not configured.
+
+**Next step:** EXP-003 — YOLOv10 3D Baseline.

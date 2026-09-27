@@ -21,3 +21,42 @@ present and is neither populated nor modified by this experiment.
 **Limitations:** this experiment performs no preprocessing, coordinate
 transformation, target encoding, split generation, model training, or metric
 evaluation.
+
+---
+
+## EXP-002 — Preprocessing + Coordinate Validation
+
+**Status:** implemented and verified with the EXP-002 synthetic-fixture test suite
+(`20 passed`).
+
+**Inputs:** a validated KITTI dataset root (output of EXP-001 audit) containing
+`image_2`, `label_2`, and `calib` directories.
+
+**Outputs:** a JSON preparation manifest (`kitti-preparation-manifest-v1`)
+containing global preprocessing metadata, deterministic train/validation split,
+and per-frame entries with relative paths, original image size, annotation
+counts, preprocessing transform (scale, padding), and transformed P2 matrix.
+
+**Validation rules:**
+- Frame must have exactly one image, one label, one calibration file
+- Image must be readable with expected channel count
+- Labels must parse as valid 15-field KITTI annotations with finite numeric
+  values; 2D boxes must satisfy x1 < x2, y1 < y2 within image bounds
+- 3D dimensions (height, width, length) must be positive for non-DontCare objects
+- 3D location (X, Y, Z) must be finite
+- Calibration must contain valid P2 (3×4) matrix with finite values
+- After preprocessing, transformed 2D boxes must remain valid within output
+  image bounds
+- Train/validation split must be non-overlapping and cover all valid frames
+
+**Test strategy:** temporary synthetic fixtures only. Tests cover:
+- Annotation parsing and coordinate validation (6 tests)
+- Calibration parsing and intrinsic derivation (4 tests)
+- Image transform mathematics: bbox, inverse bbox, projection matrix (5 tests)
+- Image preprocessing (letterbox padding value, canvas size) (1 test)
+- Deterministic split generation and manifest creation (4 tests)
+- CLI integration (2 tests)
+
+**Limitations:** The real KITTI dataset has not been processed. No PyTorch
+Dataset/DataLoader, no target encoding for model input, no class mapping
+configured, no data augmentation.

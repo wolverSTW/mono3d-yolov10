@@ -23,6 +23,9 @@ dataset:
     # P2 projects rectified camera-2 coordinates to image-2 pixels.
     required_calibration_matrices:
       P2: [3, 4]
+  preparation:
+    validation_ratio: 0.2
+    manifest_path: "data/splits/kitti/exp002_manifest.json"
 
 # ============================================================
 # Input Configuration
@@ -32,6 +35,14 @@ input:
   image_width: 640
   image_height: 640
   channels: 3
+
+# ============================================================
+# Preprocessing Configuration
+# ============================================================
+
+preprocessing:
+  mode: "letterbox"
+  padding_value: 114
 
 # ============================================================
 # Model Configuration
