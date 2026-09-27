@@ -53,4 +53,34 @@ generation, CLI success/failure paths, and invalid frame reporting.
 **Limitations:** The real KITTI dataset has not been processed. No PyTorch
 Dataset or DataLoader implemented yet. Class mapping not configured.
 
-**Next step:** EXP-003 — YOLOv10 3D Baseline.
+**Next step:** EXP-003A — Dataset + Target Encoding.
+
+---
+
+## EXP-003A — Dataset + Target Encoding
+
+**Objective:** implement PyTorch Dataset and target encoding for KITTI 3D
+detection baseline, consuming EXP-002 manifest.
+
+**Implementation:** added `target_encoder.py` (class mapping, annotation
+encoding/decoding, bbox normalisation) and `dataset.py` (`KittiManifestDataset`,
+`kitti_collate_fn`). Key features:
+- Manifest-driven dataset loading with on-demand image/label/calib reading
+- Letterbox/resize preprocessing applied from manifest parameters
+- Target encoding: class indices, normalised 2D bboxes [0,1], absolute 3D dims
+  (H,W,L in metres), absolute 3D location (X,Y,Z camera coords in metres),
+  rotation_y in radians
+- DontCare excluded from training targets
+- Variable object counts handled via list-based collate function
+- Class mapping from config or discovered from labels
+- Preserves EXP-002 coordinate conventions (H/W/L, X/Y/Z, alpha≠rotation_y)
+
+**Tests:** 19 synthetic-fixture tests (10 target_encoder + 9 dataset) covering
+class mapping, encoding/decoding, DontCare exclusion, multiple objects,
+unknown class handling, collate function, split filtering, deterministic
+behaviour.
+
+**Limitations:** Real KITTI dataset not processed. No model, heads, losses,
+training, or evaluation yet.
+
+**Next step:** EXP-003B — YOLOv10 Model Integration.

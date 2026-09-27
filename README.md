@@ -222,6 +222,96 @@ a GPU.
 
 ---
 
+## Dataset + Target Encoding (EXP-003A)
+
+EXP-003A implements the PyTorch Dataset interface and target encoding for the
+KITTI 3D object detection baseline. It consumes the EXP-002 manifest and
+produces model-ready samples.
+
+### What EXP-003A does
+
+1. **PyTorch Dataset** — `KittiManifestDataset` loads images, annotations, and
+   calibration on demand using the EXP-002 manifest
+2. **Preprocessing application** — applies the declared letterbox/resize transform
+   from the manifest to images
+3. **Target encoding** — converts raw KITTI annotations to model-ready tensors:
+   - Class indices (from configured class mapping)
+   - Normalised 2D bounding boxes [0, 1] by output image size
+   - 3D dimensions (height, width, length) in metres
+   - 3D location (X, Y, Z) in rectified camera coordinates, metres
+   - Orientation (rotation_y) in radians
+4. **DontCare handling** — excludes DontCare annotations from training targets
+5. **Collate function** — handles variable object counts per frame with list-based
+   targets and stacked image tensors
+6. **Coordinate conventions** — preserves EXP-002 conventions (H/W/L dims,
+   X/Y/Z camera coords, alpha ≠ rotation_y)
+
+### Expected KITTI structure
+
+Same as EXP-001/002:
+```text
+data/raw/kitti/
+├── image_2/    # RGB images
+├── label_2/    # KITTI 3D annotations
+└── calib/      # KITTI calibration files
+```
+
+### Run the dataset (local smoke test)
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_dataset.py -v
+```
+
+All tests use synthetic fixtures — no real KITTI data required.
+
+### Target encoding details
+
+The `EncodedTarget` dataclass contains:
+
+| Field | Shape | Type | Description |
+|-------|-------|------|-------------|
+| `class_ids` | [N] | int64 | Class indices (0..C-1) |
+| `bboxes_2d` | [N, 4] | float32 | Normalised (x1, y1, x2, y2) in [0, 1] |
+| `dimensions_3d` | [N, 3] | float32 | (height, width, length) in metres |
+| `locations_3d` | [N, 3] | float32 | (X, Y, Z) camera coords in metres |
+| `rotation_y` | [N] | float32 | Camera-frame yaw in radians |
+| `image_size` | - | tuple | (width, height) of preprocessed image |
+| `transformed_p2` | [3, 4] | float32 | Transformed projection matrix |
+
+**Normalisation choices (baseline defaults):**
+- 2D bbox: divided by output image width/height → [0, 1]
+- 3D dimensions: absolute metres (no scaling)
+- 3D location: absolute metres (no scaling)
+- Orientation: rotation_y in radians (no encoding)
+- Class: integer index from configured class mapping
+
+These are baseline defaults, not claimed to be optimal.
+
+### Class mapping
+
+If `dataset.classes` is configured in `configs/config.yaml`, it is used as the
+authoritative mapping. Otherwise, the dataset discovers classes from label files
+(excluding DontCare). Unknown classes raise an error at sample load time.
+
+### Collate function
+
+`kitti_collate_fn` returns a dict:
+- `images`: [B, 3, H, W] float32 in [0, 1]
+- `targets`: List[EncodedTarget] length B
+- `frame_ids`: List[str] length B
+- `original_sizes`: List[(width, height)] length B
+- `calibrations`: List[dict] length B
+
+Variable object counts per frame are handled by keeping targets as a list.
+
+### Local development and GPU server execution
+
+Use the same dataset class locally for code development and synthetic-fixture
+tests. On a GPU server, instantiate `KittiManifestDataset` with the manifest
+path and dataset root. The dataset itself does not require a GPU.
+
+---
+
 ## Development Status
 
 - EXP-001 — KITTI Dataset Audit — implemented and covered by synthetic-fixture
@@ -229,5 +319,7 @@ a GPU.
   empty; no claim is made that the real dataset has passed this audit.
 - EXP-002 — Preprocessing + Coordinate Validation — implemented and covered by
   synthetic-fixture tests (20 passed). The real dataset has not been processed.
-- YOLOv10 integration, 3D prediction, training, evaluation, and visualisation
-  pipelines — not yet implemented.
+- EXP-003A — Dataset + Target Encoding — implemented and covered by synthetic-fixture
+  tests (19 passed). The real dataset has not been processed.
+- YOLOv10 integration, 3D prediction heads, losses, training, evaluation, and
+  visualisation pipelines — not yet implemented.

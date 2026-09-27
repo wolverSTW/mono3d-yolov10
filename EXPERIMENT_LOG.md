@@ -60,3 +60,40 @@ counts, preprocessing transform (scale, padding), and transformed P2 matrix.
 **Limitations:** The real KITTI dataset has not been processed. No PyTorch
 Dataset/DataLoader, no target encoding for model input, no class mapping
 configured, no data augmentation.
+
+---
+
+## EXP-003A — Dataset + Target Encoding
+
+**Status:** implemented and verified with the EXP-003A synthetic-fixture test suite
+(`19 passed` — 10 target_encoder + 9 dataset).
+
+**Inputs:** EXP-002 preparation manifest (`kitti-preparation-manifest-v1`) and
+KITTI dataset root with `image_2`, `label_2`, `calib` directories.
+
+**Outputs:** PyTorch Dataset yielding samples with:
+- Preprocessed image tensor [3, H, W] float32 in [0, 1]
+- EncodedTarget: class_ids [N], bboxes_2d [N,4] normalised [0,1],
+  dimensions_3d [N,3] (H,W,L metres), locations_3d [N,3] (X,Y,Z camera metres),
+  rotation_y [N] (radians), image_size, transformed_p2 [3,4]
+- Frame ID, original image size, calibration dict
+
+**Validation rules:**
+- Frame must exist in manifest for the requested split
+- Image must be readable and convertible to RGB
+- Manifest preprocessing parameters must match declared transform
+- Annotations must parse as valid 15-field KITTI entries
+- All annotation classes must be in configured/discovered class mapping
+- DontCare annotations excluded from encoded targets
+- Transformed 2D boxes remain valid in output image coordinates
+- Collate function produces stacked images [B,3,H,W] and list of targets
+
+**Test strategy:** temporary synthetic fixtures only. Tests cover:
+- Class mapping: with/without config, DontCare exclusion, sorting (2 tests)
+- Target encoding: basic, multiple objects, DontCare exclusion, empty, unknown
+  class error, dtype preservation, P2 passthrough, bbox decode (8 tests)
+- Dataset: construction, getitem types, split filtering, multiple objects,
+  DontCare exclusion, collate, unknown class error, empty split error (9 tests)
+
+**Limitations:** Real KITTI dataset not processed. No model, heads, losses,
+training, or evaluation implemented.

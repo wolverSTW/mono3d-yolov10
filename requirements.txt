@@ -1,6 +1,10 @@
 # Core scientific computing
 numpy==2.4.6
 
+# Deep learning
+torch==2.4.0
+torchvision==0.19.0
+
 # Computer vision and image processing
 opencv-python==4.14.0.94
 Pillow==12.3.0
