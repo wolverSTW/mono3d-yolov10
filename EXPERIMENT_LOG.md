@@ -97,3 +97,39 @@ KITTI dataset root with `image_2`, `label_2`, `calib` directories.
 
 **Limitations:** Real KITTI dataset not processed. No model, heads, losses,
 training, or evaluation implemented.
+
+---
+
+## EXP-003B — YOLOv10 Model Integration
+
+**Status:** implemented and verified with the EXP-003B synthetic-fixture test suite
+(`17 passed`).
+
+**Inputs:** RGB tensor [B, 3, H, W] (H, W from config, default 640×640).
+
+**Outputs:** Feature pyramid dict with:
+- `p3`: [B, C3, H/8, W/8] (e.g., 64 channels for yolov10n)
+- `p4`: [B, C4, H/16, W/16] (e.g., 128 channels for yolov10n)
+- `p5`: [B, C5, H/32, W/32] (e.g., 256 channels for yolov10n)
+- `backbone_channels`: (C3, C4, C5)
+- `strides`: (8, 16, 32)
+
+**Validation rules:**
+- Input tensor must be [B, 3, H, W] with H, W divisible by 32
+- Output feature maps must be finite (no NaN/Inf)
+- Feature map spatial dimensions must match expected strides
+- Channel counts must match variant-specific expectations
+
+**Test strategy:** temporary synthetic fixtures only. Tests cover:
+- Config defaults and custom values (2 tests)
+- Backbone construction for all 5 variants (2 tests)
+- Feature channels correctness per variant (1 test)
+- Forward pass shapes, batch sizes, input resolutions (4 tests)
+- Parameter count sanity check (1 test)
+- Factory functions (2 tests)
+- Baseline model integration (5 tests)
+
+**Limitations:** Real KITTI dataset not processed. No 3D prediction heads,
+losses, training, or evaluation implemented. CUDA not available locally —
+GPU verification pending. Pretrained weights not loaded (architecture-only
+mode for development).

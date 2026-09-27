@@ -312,6 +312,96 @@ path and dataset root. The dataset itself does not require a GPU.
 
 ---
 
+## YOLOv10 Model Integration (EXP-003B)
+
+EXP-003B integrates a verified YOLOv10 feature extractor as the backbone for
+the monocular 3D detection baseline. It uses the ultralytics implementation
+via the official YAML configurations, avoiding pretrained weight downloads
+during development.
+
+### What EXP-003B does
+
+1. **YOLOv10 backbone adapter** — `Yolov10Backbone` wraps the ultralytics
+   `DetectionModel` built from official YAML configs (yolov10n/s/m/l/x)
+2. **Feature pyramid extraction** — uses forward hooks to capture multi-scale
+   feature maps (P3, P4, P5) from the backbone+neck, letting the ultralytics
+   forward pass handle all skip connections (Concat, Upsample) correctly
+3. **Configuration-driven** — variant, pretrained flag, input channels from config
+4. **Clean interface** — returns feature pyramid dict suitable for custom 3D
+   prediction heads (EXP-003C)
+
+### Architecture
+
+```text
+Input [B, 3, H, W]
+        │
+        ▼
+YOLOv10 Backbone (ultralytics DetectionModel)
+        │
+        ├── Conv stem (stride 2, 4)
+        ├── C2f blocks + SCDown (backbone)
+        ├── SPPF + PSA (neck)
+        ├── Upsample + Concat + C2f (P3, stride 8)
+        ├── Conv + Concat + C2f (P4, stride 16)
+        └── SCDown + Concat + C2fCIB (P5, stride 32)
+        │
+        ▼
+Feature Pyramid (P3, P4, P5) → Custom 3D Heads (EXP-003C)
+```
+
+### Supported variants
+
+| Variant | Width | P3 channels | P4 channels | P5 channels | Params (approx) |
+|---------|-------|-------------|-------------|-------------|-----------------|
+| yolov10n | 0.25 | 64 | 128 | 256 | 2.8M |
+| yolov10s | 0.50 | 128 | 256 | 512 | 8.1M |
+| yolov10m | 0.75 | 192 | 384 | 768 | — |
+| yolov10l | 1.00 | 256 | 512 | 1024 | — |
+| yolov10x | 1.25 | 320 | 640 | 1280 | — |
+
+Channels are base (256, 512, 1024) scaled by width multiplier.
+
+### Run the model (local smoke test)
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_yolov10.py -v
+```
+
+All tests use synthetic fixtures — no real KITTI data or pretrained weights required.
+
+### Model interface
+
+`Baseline3DDetector` returns a dict:
+
+| Key | Shape | Description |
+|-----|-------|-------------|
+| `p3` | [B, C3, H/8, W/8] | P3 feature map |
+| `p4` | [B, C4, H/16, W/16] | P4 feature map |
+| `p5` | [B, C5, H/32, W/32] | P5 feature map |
+| `backbone_channels` | tuple | (C3, C4, C5) |
+| `strides` | tuple | (8, 16, 32) |
+
+### Configuration
+
+In `configs/config.yaml`:
+
+```yaml
+model:
+  name: "yolov10"
+  variant: "yolov10n"
+  num_classes: 3
+```
+
+The backbone config is derived from the model section.
+
+### Local development and GPU server execution
+
+Use the same model class locally for code development and synthetic-fixture
+tests. On a GPU server, instantiate `Baseline3DDetector` with the config.
+The model runs on CPU or CUDA automatically.
+
+---
+
 ## Development Status
 
 - EXP-001 — KITTI Dataset Audit — implemented and covered by synthetic-fixture

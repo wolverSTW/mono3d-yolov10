@@ -84,3 +84,33 @@ behaviour.
 training, or evaluation yet.
 
 **Next step:** EXP-003B — YOLOv10 Model Integration.
+
+---
+
+## EXP-003B — YOLOv10 Model Integration
+
+**Objective:** integrate a verified YOLOv10 feature extractor as the backbone for
+the monocular 3D detection baseline.
+
+**Implementation:** added `yolov10.py` backbone adapter using ultralytics
+`DetectionModel` built from official YAML configs, and `baseline.py` model
+wrapper. Key features:
+- Loads YOLOv10 architecture from official YAML configs (yolov10n/s/m/l/x)
+- Uses forward hooks on backbone+neck layers (indices 16, 19, 22) to capture
+  P3, P4, P5 feature maps, letting ultralytics forward handle skip connections
+- Configuration-driven: variant, pretrained flag, input channels from config
+- Returns feature pyramid dict (P3, P4, P5) for custom 3D heads (EXP-003C)
+- Supports all 5 YOLOv10 variants with width-scaled channels
+
+**Environment:** Python 3.11, PyTorch 2.4.0+cpu, torchvision 0.19.0+cpu,
+ultralytics 8.4.163. CUDA not available locally (CPU-only development).
+
+**Tests:** 17 synthetic-fixture tests covering config, construction, all variants,
+forward pass shapes, batch sizes, input resolutions, parameter counts, factory
+functions, baseline model integration. All pass.
+
+**Limitations:** Real KITTI dataset not processed. No 3D prediction heads,
+losses, training, or evaluation yet. CUDA not available locally — GPU
+verification pending.
+
+**Next step:** EXP-003C — 3D Prediction Heads.
