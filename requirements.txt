@@ -17,3 +17,6 @@ scikit-learn==1.9.1
 
 # Utilities
 tqdm==4.70.1
+
+# Testing
+pytest==9.1.1

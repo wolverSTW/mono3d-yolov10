@@ -18,6 +18,11 @@ dataset:
   image_dir: "data/raw/kitti/image_2"
   label_dir: "data/raw/kitti/label_2"
   calibration_dir: "data/raw/kitti/calib"
+  audit:
+    report_path: "logs/evaluation/kitti_audit.json"
+    # P2 projects rectified camera-2 coordinates to image-2 pixels.
+    required_calibration_matrices:
+      P2: [3, 4]
 
 # ============================================================
 # Input Configuration
