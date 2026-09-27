@@ -133,3 +133,52 @@ training, or evaluation implemented.
 losses, training, or evaluation implemented. CUDA not available locally —
 GPU verification pending. Pretrained weights not loaded (architecture-only
 mode for development).
+
+---
+
+## EXP-003C — Baseline 3D Prediction Heads
+
+**Status:** implemented and verified with synthetic-fixture test suite
+(`70 passed` total).
+
+**Inputs:** RGB tensor [B, 3, H, W] (H, W from config, default 640×640).
+
+**Outputs:** Structured `BaselineOutput` dataclass with:
+
+- `detection_2d`: `Detection2DOutput` — class_logits [B, N, C], bboxes_2d [B, N, 4]
+  normalised [0,1], objectness [B, N]
+- `dimensions_3d`: `Dimension3DOutput` — dimensions [B, N, 3] (h,w,l metres, exp transform),
+  logits [B, N, 3]
+- `locations_3d`: `Location3DOutput` — locations [B, N, 3] (X,Y,Z camera metres, direct regression),
+  logits [B, N, 3]
+- `orientation`: `OrientationOutput` — rotation_y [B, N] (radians, direct regression), logits [B, N, 1]
+- `backbone_features`: dict with p3, p4, p5, channels, strides
+
+**Coordinate Conventions (preserved from EXP-002):**
+- 2D bbox: (x1, y1, x2, y2) normalised [0,1]
+- 3D dims: (h, w, l) metres — exact h,w,l ordering
+- 3D location: (X, Y, Z) rectified camera coords — X horizontal, Y vertical,
+  Z forward depth (camera-axis depth, NOT Euclidean distance)
+- Orientation: `rotation_y` in radians — NOT `alpha` (observation angle)
+
+**Validation rules:**
+- Input tensor [B, 3, H, W] with H, W divisible by 32
+- Output feature maps finite (no NaN/Inf)
+- Dimension outputs strictly positive (exp transform)
+- Dimension ordering: h, w, l
+- Location: X, Y, Z in camera coords; Z is depth not distance
+- Orientation: rotation_y in radians; NOT alpha
+
+**Test strategy:** synthetic fixtures only. Tests cover:
+- 2D detection head: construction, output shapes, finite outputs
+- Dimension head: construction, output shapes, positive dimensions, h/w/l ordering
+- Location head: construction, output shapes, X/Y/Z convention
+- Orientation head: construction, output shapes, rotation_y representation
+- Full model integration: construction, forward pass, structured output keys,
+  batch handling, finite outputs, parameter counts
+- Multi-scale feature usage: P3/P4/P5 all consumed by heads
+- Class mapping: num_classes from config respected
+
+**Limitations:** Real KITTI dataset not processed. No losses, training,
+evaluation, geometry-guided enhancement, Transformer/context, uncertainty,
+distance refinement. CUDA not available locally — GPU verification pending.

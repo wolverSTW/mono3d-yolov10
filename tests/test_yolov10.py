@@ -145,17 +145,26 @@ def test_baseline_model_forward() -> None:
     with torch.no_grad():
         outputs = model(x)
 
-    assert "p3" in outputs
-    assert "p4" in outputs
-    assert "p5" in outputs
-    assert "backbone_channels" in outputs
-    assert "strides" in outputs
+    # Check structured output
+    assert hasattr(outputs, 'detection_2d')
+    assert hasattr(outputs, 'dimensions_3d')
+    assert hasattr(outputs, 'locations_3d')
+    assert hasattr(outputs, 'orientation')
+    assert hasattr(outputs, 'backbone_features')
 
-    assert outputs["p3"].shape == (2, 64, 80, 80)
-    assert outputs["p4"].shape == (2, 128, 40, 40)
-    assert outputs["p5"].shape == (2, 256, 20, 20)
-    assert outputs["backbone_channels"] == (64, 128, 256)
-    assert outputs["strides"] == (8, 16, 32)
+    # Check backbone features
+    bf = outputs.backbone_features
+    assert "p3" in bf
+    assert "p4" in bf
+    assert "p5" in bf
+    assert "backbone_channels" in bf
+    assert "strides" in bf
+
+    assert bf["p3"].shape == (2, 64, 80, 80)
+    assert bf["p4"].shape == (2, 128, 40, 40)
+    assert bf["p5"].shape == (2, 256, 20, 20)
+    assert bf["backbone_channels"] == (64, 128, 256)
+    assert bf["strides"] == (8, 16, 32)
 
 
 def test_baseline_model_finite_outputs() -> None:
@@ -167,8 +176,9 @@ def test_baseline_model_finite_outputs() -> None:
     with torch.no_grad():
         outputs = model(x)
 
+    # Check backbone features are finite
     for key in ["p3", "p4", "p5"]:
-        assert torch.isfinite(outputs[key]).all(), f"NaN/Inf in {key}"
+        assert torch.isfinite(outputs.backbone_features[key]).all(), f"NaN/Inf in {key}"
 
 
 def test_baseline_config_custom() -> None:

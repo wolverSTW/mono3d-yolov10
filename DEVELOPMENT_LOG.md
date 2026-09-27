@@ -114,3 +114,42 @@ losses, training, or evaluation yet. CUDA not available locally — GPU
 verification pending.
 
 **Next step:** EXP-003C — 3D Prediction Heads.
+
+---
+
+## EXP-003C — Baseline 3D Prediction Heads
+
+**Objective:** implement baseline 3D prediction heads (2D detection, 3D dimensions,
+3D location, orientation) on top of the YOLOv10 feature pyramid.
+
+**Implementation:** added prediction heads in `src/models/heads/`:
+- `detection_2d.py` — `Detection2DHead`: custom anchor-free head on P3/P4/P5
+  predicting class logits, normalised 2D bboxes, objectness. NOT the native
+  YOLOv10 `v10Detect` head.
+- `dimension_3d.py` — `Dimension3DHead`: predicts (h, w, l) in metres using
+  `exp(logits)` for positive dimensions.
+- `location_3d.py` — `Location3DHead`: predicts (X, Y, Z) in rectified camera
+  coordinates (metres) via direct regression. Z = camera-axis depth.
+- `orientation.py` — `OrientationHead`: predicts `rotation_y` (camera-frame yaw)
+  in radians via direct regression. Does NOT use `alpha`.
+- `baseline.py` — updated `Baseline3DDetector` with all heads, returning
+  structured `BaselineOutput` dataclass.
+
+**Coordinate conventions preserved (EXP-002):**
+- 2D bbox: (x1, y1, x2, y2) normalised [0,1]
+- 3D dims: (h, w, l) metres — exact h,w,l ordering
+- 3D location: (X, Y, Z) rectified camera coords — X horizontal, Y vertical,
+  Z forward depth
+- Orientation: `rotation_y` in radians — NOT `alpha`
+- Z is camera-axis depth; NOT Euclidean distance
+
+**Environment:** Python 3.11, PyTorch 2.4.0+cpu, torchvision 0.19.0+cpu,
+ultralytics 8.4.163. CUDA not available locally (CPU-only development).
+
+**Tests:** 70 total tests pass (including 70 existing + new head tests).
+
+**Limitations:** Real KITTI dataset not processed. No losses, training,
+evaluation, geometry-guided enhancement, Transformer, uncertainty, or
+distance refinement. CUDA not available locally — GPU verification pending.
+
+**Next step:** EXP-003D — Baseline Losses.

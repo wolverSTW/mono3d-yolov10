@@ -402,6 +402,108 @@ The model runs on CPU or CUDA automatically.
 
 ---
 
+## Baseline 3D Prediction Heads (EXP-003C)
+
+EXP-003C implements the baseline 3D prediction heads on top of the YOLOv10
+feature pyramid. It adds custom prediction heads for 2D detection, 3D
+dimensions, 3D location, and orientation — completing the baseline
+architecture.
+
+### What EXP-003C does
+
+1. **2D Detection Head** (`Detection2DHead`) — custom anchor-free head on the
+   feature pyramid (P3, P4, P5) predicting class logits, normalised 2D
+   bounding boxes, and objectness scores. This is a CUSTOM head, NOT the native
+   YOLOv10 `v10Detect` head, to maintain a clean separation for the 3D baseline.
+2. **3D Dimension Head** (`Dimension3DHead`) — predicts (height, width, length)
+   in metres using an exponential transform to ensure positive dimensions.
+3. **3D Location Head** (`Location3DHead`) — predicts (X, Y, Z) in rectified
+   camera coordinates (metres) using direct regression. Z is camera-axis depth,
+   NOT Euclidean distance.
+4. **Orientation Head** (`OrientationHead`) — predicts `rotation_y` (camera-frame
+   yaw) in radians via direct regression. Does NOT use `alpha` (observation angle).
+5. **Structured Output** — `BaselineOutput` dataclass with explicit fields for
+   each prediction type and backbone features.
+
+### Architecture
+
+```text
+Input [B, 3, H, W]
+        │
+        ▼
+YOLOv10 Backbone
+        │
+        ▼
+Feature Pyramid (P3, P4, P5)
+        │
+        ├── 2D Detection Head (class_logits, bboxes_2d, objectness)
+        ├── 3D Dimension Head (h, w, l in metres, exp transform)
+        ├── 3D Location Head (X, Y, Z in metres, camera coords)
+        └── Orientation Head (rotation_y in radians, direct regression)
+        │
+        ▼
+Structured BaselineOutput
+```
+
+### Prediction Representations
+
+| Head | Output | Shape | Convention |
+|------|--------|-------|------------|
+| 2D Detection | `class_logits` | [B, N, C] | Class logits per object |
+| | `bboxes_2d` | [B, N, 4] | Normalised (x1,y1,x2,y2) in [0,1] |
+| | `objectness` | [B, N] | Sigmoid confidence |
+| 3D Dimension | `dimensions` | [B, N, 3] | (h, w, l) metres, exp(logits) |
+| 3D Location | `locations` | [B, N, 3] | (X, Y, Z) camera coords, metres |
+| Orientation | `rotation_y` | [B, N] | Camera-frame yaw, radians |
+
+**Coordinate Conventions (preserved from EXP-002):**
+- 2D bbox: (x1, y1, x2, y2) normalised to [0, 1]
+- 3D dims: (height, width, length) in metres — exact h, w, l ordering
+- 3D location: (X, Y, Z) rectified camera coords — X horizontal, Y vertical, Z forward depth
+- Orientation: `rotation_y` in radians — NOT `alpha` (observation angle)
+- Z is camera-axis depth; NOT Euclidean distance
+
+### Run the model (local smoke test)
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_yolov10.py -v
+```
+
+All tests use synthetic fixtures — no real KITTI data or pretrained weights required.
+
+### Model Interface
+
+`Baseline3DDetector` returns `BaselineOutput` dataclass:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `detection_2d` | `Detection2DOutput` | Class logits, bboxes_2d, objectness |
+| `dimensions_3d` | `Dimension3DOutput` | Dimensions (h,w,l), logits |
+| `locations_3d` | `Location3DOutput` | Locations (X,Y,Z), logits |
+| `orientation` | `OrientationOutput` | rotation_y, logits |
+| `backbone_features` | dict | P3, P4, P5, channels, strides |
+
+### Configuration
+
+In `configs/config.yaml`:
+
+```yaml
+model:
+  name: "yolov10"
+  variant: "yolov10n"
+  num_classes: 3
+```
+
+Head configurations can be customised via `BaselineConfig`.
+
+### Local development and GPU server execution
+
+Use the same model class locally for code development and synthetic-fixture
+tests. On a GPU server, instantiate `Baseline3DDetector` with the config.
+The model runs on CPU or CUDA automatically.
+
+---
+
 ## Development Status
 
 - EXP-001 — KITTI Dataset Audit — implemented and covered by synthetic-fixture
@@ -411,5 +513,9 @@ The model runs on CPU or CUDA automatically.
   synthetic-fixture tests (20 passed). The real dataset has not been processed.
 - EXP-003A — Dataset + Target Encoding — implemented and covered by synthetic-fixture
   tests (19 passed). The real dataset has not been processed.
-- YOLOv10 integration, 3D prediction heads, losses, training, evaluation, and
-  visualisation pipelines — not yet implemented.
+- EXP-003B — YOLOv10 Model Integration — implemented and covered by synthetic-fixture
+  tests (17 passed). The real dataset has not been processed.
+- EXP-003C — Baseline 3D Prediction Heads — implemented and covered by synthetic-fixture
+  tests (70 total tests passed). The real dataset has not been processed.
+- Geometry-guided enhancement, losses, training, evaluation, and visualisation
+  pipelines — not yet implemented.
